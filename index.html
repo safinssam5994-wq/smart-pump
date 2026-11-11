@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#07080d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icon-192.png">
   <title>Smart Pump Pro</title>
   <style>
     :root {
@@ -30,6 +32,7 @@
       --status-negative: #ef4444;
       --status-negative-soft: rgba(239, 68, 68, 0.15);
       --status-warning: #f59e0b;
+      --status-purple: #a855f7;
 
       --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", sans-serif;
       --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
@@ -55,7 +58,7 @@
       min-height: 100vh;
       display: flex;
       justify-content: center;
-      padding: 16px 12px 80px 12px;
+      padding: 16px 12px 84px 12px;
       font-size: 14px;
       line-height: 1.45;
       overflow-x: hidden;
@@ -78,22 +81,12 @@
     }
 
     .brand-title {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 700;
       letter-spacing: -0.4px;
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-
-    .brand-badge {
-      font-size: 10px;
-      padding: 2px 7px;
-      background: var(--surface-active);
-      border: 1px solid var(--hairline);
-      border-radius: var(--radius-pill);
-      color: var(--text-secondary);
-      font-weight: 600;
     }
 
     .status-badge {
@@ -103,7 +96,7 @@
       background: var(--surface-card);
       border: 1px solid var(--hairline);
       border-radius: var(--radius-pill);
-      padding: 5px 11px;
+      padding: 5px 12px;
       font-size: 12px;
       color: var(--text-secondary);
     }
@@ -117,6 +110,7 @@
     }
     .status-dot.amber { background: var(--status-warning); box-shadow: 0 0 8px var(--status-warning); }
     .status-dot.red { background: var(--status-negative); box-shadow: 0 0 8px var(--status-negative); }
+    .status-dot.purple { background: var(--status-purple); box-shadow: 0 0 8px var(--status-purple); }
 
     /* Tab Contents */
     .tab-content {
@@ -132,7 +126,36 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Fluid Tank Sight Card (Real Telemetry Driven) */
+    /* Mode Banner */
+    .mode-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-card);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius-inner);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .mode-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--surface-raised);
+      color: var(--text-secondary);
+    }
+    .mode-pill.garden { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .mode-pill.autofill { background: var(--status-positive-soft); color: var(--status-positive); border: 1px solid rgba(34, 197, 94, 0.4); }
+    .mode-pill.manual { background: var(--accent-water-glow); color: var(--accent-water); border: 1px solid rgba(14, 165, 233, 0.4); }
+    .mode-pill.error { background: var(--status-negative-soft); color: var(--status-negative); border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    /* Fluid Tank Sight Card (MPR121 ELE0-ELE9 Level + ELE10 Overflow + ELE11 Inlet) */
     .tank-card {
       background: var(--surface-card);
       border: 1px solid var(--hairline);
@@ -159,9 +182,9 @@
       position: absolute;
       top: 14px;
       right: 0;
-      width: 5px;
+      width: 6px;
       height: 20px;
-      background: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.35);
       border-radius: 2px 0 0 2px;
       z-index: 5;
     }
@@ -192,7 +215,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 5px;
     }
 
     .meta-label {
@@ -204,24 +227,34 @@
     }
 
     .meta-percentage {
-      font-size: 44px;
+      font-size: 46px;
       font-weight: 800;
       letter-spacing: -1.5px;
       color: var(--text-primary);
       line-height: 1;
     }
 
-    .meta-sub {
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-top: 4px;
+    .meta-badges {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 6px;
     }
 
-    .meta-foil {
-      font-size: 11px;
+    .inlet-status {
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       color: var(--accent-water);
-      margin-top: 8px;
-      font-family: var(--font-mono);
+    }
+    .inlet-status.dry { color: var(--text-muted); }
+    .inlet-status.wet { color: var(--status-positive); }
+
+    .overflow-status {
+      font-size: 11px;
+      color: var(--text-muted);
     }
 
     /* Live Telemetry Metric Grid */
@@ -314,6 +347,83 @@
       padding: 0 4px;
     }
 
+    /* Auto-Fill Toggle Bar */
+    .autofill-card {
+      background: var(--surface-card);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius-inner);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .autofill-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .autofill-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .autofill-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* iOS Style Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 28px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--surface-active);
+      transition: .25s var(--ease);
+      border-radius: 34px;
+      border: 1px solid var(--hairline);
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 2px;
+      background-color: white;
+      transition: .25s var(--ease);
+      border-radius: 50%;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+
+    input:checked + .slider {
+      background-color: var(--status-positive);
+      border-color: var(--status-positive);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
     /* Event Logs Tab */
     .logs-header {
       display: flex;
@@ -327,7 +437,7 @@
       border: 1px solid var(--hairline);
       color: var(--text-secondary);
       border-radius: var(--radius-pill);
-      padding: 5px 12px;
+      padding: 6px 14px;
       font-size: 12px;
       cursor: pointer;
     }
@@ -357,6 +467,7 @@
     .log-item.alert { border-left-color: var(--status-negative); }
     .log-item.warning { border-left-color: var(--status-warning); }
     .log-item.success { border-left-color: var(--status-positive); }
+    .log-item.purple { border-left-color: var(--status-purple); }
 
     .log-time {
       font-family: var(--font-mono);
@@ -480,7 +591,7 @@
       left: 0;
       right: 0;
       height: 64px;
-      background: rgba(11, 13, 20, 0.88);
+      background: rgba(11, 13, 20, 0.92);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-top: 1px solid var(--hairline);
@@ -523,16 +634,17 @@
     .passcode-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(6, 7, 10, 0.94);
+      background: rgba(6, 7, 10, 0.95);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       z-index: 200;
-      display: flex;
+      display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 24px;
     }
+    .passcode-overlay.visible { display: flex; }
 
     .passcode-card {
       width: 100%;
@@ -592,7 +704,7 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       z-index: 300;
@@ -668,12 +780,12 @@
   <!-- Toast Notification -->
   <div class="toast" id="toast">Notification</div>
 
-  <!-- Passcode Access Gate -->
+  <!-- Passcode Access Gate (First Launch & Settings Lock) -->
   <div class="passcode-overlay" id="passcodeOverlay">
     <div class="passcode-card">
-      <div style="font-size: 32px;">🔒</div>
-      <h2 style="font-size: 18px; font-weight: 700;">Smart Pump Pro</h2>
-      <p style="font-size: 13px; color: var(--text-secondary);">Enter 4-digit passcode to unlock controller</p>
+      <div style="font-size: 32px;" id="lockIcon">🔒</div>
+      <h2 style="font-size: 18px; font-weight: 700;" id="passcodeTitle">Smart Pump Access</h2>
+      <p style="font-size: 13px; color: var(--text-secondary);" id="passcodeSubtitle">Enter 4-digit PIN to unlock</p>
       
       <div class="passcode-dots">
         <div class="dot" id="dot1"></div>
@@ -692,7 +804,7 @@
         <button class="key-btn" onclick="enterDigit('7')">7</button>
         <button class="key-btn" onclick="enterDigit('8')">8</button>
         <button class="key-btn" onclick="enterDigit('9')">9</button>
-        <button class="key-btn" style="font-size: 14px;" onclick="clearPasscode()">CLR</button>
+        <button class="key-btn" style="font-size: 13px;" onclick="cancelPasscode()">CANCEL</button>
         <button class="key-btn" onclick="enterDigit('0')">0</button>
         <button class="key-btn" style="font-size: 18px;" onclick="deleteDigit()">⌫</button>
       </div>
@@ -718,7 +830,6 @@
     <header class="top-bar">
       <div class="brand-title">
         <span>Smart Pump</span>
-        <span class="brand-badge">250m EVO</span>
       </div>
       <div class="status-badge">
         <span class="status-dot" id="statusDot"></span>
@@ -729,18 +840,28 @@
     <!-- TAB 1: REAL DASHBOARD -->
     <section class="tab-content active" id="tabDashboard">
       
-      <!-- Real Sight Tube Capsule (MPR121 Telemetry) -->
+      <!-- Dynamic Operating Mode Banner -->
+      <div class="mode-banner">
+        <span>Operating Status</span>
+        <span class="mode-pill" id="modePill">Standby</span>
+      </div>
+
+      <!-- Real Sight Tube Capsule (MPR121 ELE0-ELE9 Level + ELE10 Overflow + ELE11 Inlet) -->
       <div class="tank-card">
         <div class="capsule-chassis">
-          <div class="foil-sensor-marker" title="Capacitive Foil Electrode (100% Overflow Cutoff)"></div>
+          <div class="foil-sensor-marker" title="Capacitive Overflow Sensor (ELE10)"></div>
           <div class="liquid-fill" id="liquidFill"></div>
         </div>
 
         <div class="tank-meta">
           <span class="meta-label">Storage Sight Tube</span>
           <div class="meta-percentage" id="levelPct">--%</div>
-          <div class="meta-sub" id="levelSub">Waiting for sensor...</div>
-          <div class="meta-foil" id="foilStatus">Foil sensor: --</div>
+          <div class="meta-badges">
+            <div class="inlet-status" id="inletStatus">
+              <span>●</span> <span id="inletStatusText">Intake: Checking...</span>
+            </div>
+            <div class="overflow-status" id="overflowStatus">Overflow Sensor: Armed (ELE10)</div>
+          </div>
         </div>
       </div>
 
@@ -760,7 +881,7 @@
         </div>
       </div>
 
-      <!-- Contactor Control Puck Button -->
+      <!-- Contactor Control Puck Button (1-Tap Operation, No Password) -->
       <div class="control-card">
         <button class="pump-btn" id="pumpBtn" onclick="togglePump()">
           <span id="pumpBtnIcon">⚡</span>
@@ -773,12 +894,24 @@
         </div>
       </div>
 
+      <!-- Auto-Fill Toggle Bar -->
+      <div class="autofill-card">
+        <div class="autofill-info">
+          <div class="autofill-title">Automatic Tank Auto-Fill</div>
+          <div class="autofill-sub" id="autofillSubText">Auto-starts below 30%, stops at 100%</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="autofillToggle" onchange="toggleAutoFill(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
     </section>
 
-    <!-- TAB 2: REAL EVENT LOGS -->
+    <!-- TAB 2: REAL EVENT LOGS (Auto-Purged After 15 Days) -->
     <section class="tab-content" id="tabLogs">
       <div class="logs-header">
-        <span class="meta-label">Hardware Event Feed</span>
+        <span class="meta-label">15-Day Event History</span>
         <div style="display: flex; gap: 8px;">
           <button class="btn-secondary" onclick="fetchLogs()">Refresh</button>
           <button class="btn-secondary" onclick="clearLogs()">Clear</button>
@@ -796,14 +929,52 @@
       </div>
     </section>
 
-    <!-- TAB 3: SETTINGS & OTA -->
+    <!-- TAB 3: SETTINGS & OTA (Password Protected on Every Click) -->
     <section class="tab-content" id="tabSettings">
       
-      <!-- Safety Threshold Settings -->
+      <!-- Auto-Fill & Garden Mode Calibration -->
+      <div class="settings-group">
+        <div class="group-title">
+          <span>Automated Flow & Garden Control</span>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label-row">
+            <span>Auto-Fill Start Level</span>
+            <span class="setting-value-badge" id="autoStartPctVal">30%</span>
+          </div>
+          <input type="range" class="slider-input" id="autoStartPct" min="10" max="50" step="5" value="30" oninput="updateSettingLabel('autoStartPct', '%')">
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label-row">
+            <span>Auto-Fill Stop Level</span>
+            <span class="setting-value-badge" id="autoStopPctVal">100%</span>
+          </div>
+          <input type="range" class="slider-input" id="autoStopPct" min="80" max="100" step="5" value="100" oninput="updateSettingLabel('autoStopPct', '%')">
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label-row">
+            <span>Garden Mode Switch Delay</span>
+            <span class="setting-value-badge" id="gardenSwitchDelaySecVal">60 s</span>
+          </div>
+          <input type="range" class="slider-input" id="gardenSwitchDelaySec" min="10" max="300" step="10" value="60" oninput="updateSettingLabel('gardenSwitchDelaySec', ' s')">
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label-row">
+            <span>Garden Mode Max Runtime</span>
+            <span class="setting-value-badge" id="gardenMaxRuntimeMinVal">∞ (Infinite)</span>
+          </div>
+          <input type="range" class="slider-input" id="gardenMaxRuntimeMin" min="15" max="195" step="15" value="195" oninput="updateGardenRuntimeLabel()">
+        </div>
+      </div>
+
+      <!-- Motor & Power Protection -->
       <div class="settings-group">
         <div class="group-title">
           <span>Motor & Power Protection</span>
-          <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">Hardware Cutoffs</span>
         </div>
 
         <div class="setting-item">
@@ -837,13 +1008,6 @@
           </div>
           <input type="range" class="slider-input" id="highVoltage" min="240" max="285" step="1" value="265" oninput="updateSettingLabel('highVoltage', ' V')">
         </div>
-      </div>
-
-      <!-- Relay & Link Timers -->
-      <div class="settings-group">
-        <div class="group-title">
-          <span>Relay & Watchdog Timers</span>
-        </div>
 
         <div class="setting-item">
           <div class="setting-label-row">
@@ -862,6 +1026,35 @@
         </div>
 
         <button class="btn-primary" onclick="promptSaveSettings()">Save Safety Thresholds</button>
+      </div>
+
+      <!-- Audio & Push Notifications Preferences -->
+      <div class="settings-group">
+        <div class="group-title">
+          <span>App Preferences & Alerts</span>
+        </div>
+
+        <div class="autofill-card" style="padding: 0; background: none; border: none;">
+          <div class="autofill-info">
+            <div class="autofill-title">Audio Synthesizer Feedback</div>
+            <div class="autofill-sub">Chimes and trip alert warbles</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="audioToggle" checked onchange="toggleAudio(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="autofill-card" style="padding: 0; background: none; border: none;">
+          <div class="autofill-info">
+            <div class="autofill-title">Push Notifications</div>
+            <div class="autofill-sub">Banners on errors, garden mode & trips</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="notifyToggle" onchange="togglePushNotifications(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- Security & Passcode Change -->
@@ -886,10 +1079,12 @@
       <!-- OTA Firmware Updates -->
       <div class="settings-group">
         <div class="group-title">
-          <span>OTA Firmware Updates</span>
-          <span class="brand-badge">v2.1.0</span>
+          <span>Wireless OTA Firmware Updates</span>
+          <span class="brand-badge">v4.0</span>
         </div>
-        <p style="font-size: 12px; color: var(--text-secondary);">Upload compiled <code>firmware.bin</code> wirelessly to the Tank ESP32 when connected to local Wi-Fi.</p>
+        <p style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+          Upload compiled <code>firmware.bin</code> wirelessly to the Tank ESP32 when on local Wi-Fi. Dual-partition A/B rollback protects against failed uploads.
+        </p>
         
         <form id="otaForm" method="POST" action="/update" enctype="multipart/form-data" target="_blank" style="display: flex; flex-direction: column; gap: 10px;">
           <input type="file" name="update" class="input-field" accept=".bin" style="padding: 6px;">
@@ -911,7 +1106,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       <span>Logs</span>
     </button>
-    <button class="nav-btn" id="btnNavSettings" onclick="switchTab('tabSettings', this)">
+    <button class="nav-btn" id="btnNavSettings" onclick="attemptOpenSettings(this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span>Settings</span>
     </button>
@@ -925,7 +1120,7 @@
       });
     }
 
-    // New Firebase Project Configuration
+    // Active Firebase Project Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyBGOOjwKFBWXl3sRvzZ34tdurhqUARBViY",
       authDomain: "smart-pump-ba1a0.firebaseapp.com",
@@ -938,27 +1133,36 @@
 
     let db = null;
     let isCloudOnline = false;
-    let masterPasscode = "1234"; // Default initial passcode
+    let masterPasscode = "1234"; // Default PIN
 
-    // State Variables (100% Real Hardware Data)
+    // Hardware State Variables (100% Real Hardware Data)
     let isPumpRunning = false;
     let isContactorStarting = false;
     let liveVoltage = 0.0;
     let liveCurrent = 0.0;
-    let liveWaterLevel = 0;
+    let liveWaterLevel = 0; // 0-100% (from ELE0-ELE9)
+    let isOverflowTripped = false; // ELE10
+    let isIntakeFlowing = false;   // ELE11
     let activeFault = 'NONE';
+    let currentMode = 'STANDBY'; // 'STANDBY', 'MANUAL', 'AUTOFILL', 'GARDEN', 'VALVE_ERROR'
+    let autoFillEnabled = false;
     let runtimeSeconds = 0;
     let runtimeInterval = null;
 
     // Active Settings Cache
     let currentSettings = {
+      autoStartPct: 30,
+      autoStopPct: 100,
+      gardenSwitchDelaySec: 60,
+      gardenMaxRuntimeMin: 195, // 195 means Infinite
       dryRunAmps: 4.0,
       overloadAmps: 16.0,
       lowVoltage: 175,
       highVoltage: 265,
       startPulseSec: 1.8,
       watchdogSec: 180,
-      heartbeatSec: 15
+      audioEnabled: true,
+      notificationsEnabled: false
     };
     let pendingSettings = null;
 
@@ -969,6 +1173,9 @@
 
     // Passcode Gate Engine
     let enteredPin = "";
+    let passcodeIntent = "FIRST_LAUNCH"; // "FIRST_LAUNCH" or "SETTINGS"
+    let pendingSettingsNavBtn = null;
+
     function enterDigit(d) {
       if (enteredPin.length < 4) {
         enteredPin += d;
@@ -995,11 +1202,48 @@
       }
     }
 
+    function showPasscodeModal(intent, btn = null) {
+      passcodeIntent = intent;
+      pendingSettingsNavBtn = btn;
+      enteredPin = "";
+      updateDots();
+
+      const overlay = document.getElementById('passcodeOverlay');
+      const title = document.getElementById('passcodeTitle');
+      const subtitle = document.getElementById('passcodeSubtitle');
+      const icon = document.getElementById('lockIcon');
+
+      if (intent === 'FIRST_LAUNCH') {
+        title.innerText = 'Smart Pump Access';
+        subtitle.innerText = 'Enter 4-digit PIN to unlock controller';
+        icon.innerText = '🔒';
+      } else {
+        title.innerText = 'Settings Locked';
+        subtitle.innerText = 'Enter PIN to open Settings';
+        icon.innerText = '⚙️';
+      }
+
+      overlay.className = 'passcode-overlay visible';
+    }
+
+    function cancelPasscode() {
+      document.getElementById('passcodeOverlay').className = 'passcode-overlay';
+      enteredPin = "";
+      updateDots();
+    }
+
     function verifyPasscode() {
       if (enteredPin === masterPasscode) {
-        sessionStorage.setItem('smart_pump_auth', 'unlocked');
-        document.getElementById('passcodeOverlay').style.display = 'none';
-        showToast('Access Granted');
+        document.getElementById('passcodeOverlay').className = 'passcode-overlay';
+        if (passcodeIntent === 'FIRST_LAUNCH') {
+          localStorage.setItem('pump_device_auth', 'unlocked');
+          showToast('Device Authorized');
+        } else if (passcodeIntent === 'SETTINGS') {
+          switchTab('tabSettings', pendingSettingsNavBtn);
+          showToast('Settings Unlocked');
+        }
+        enteredPin = "";
+        updateDots();
       } else {
         showToast('Incorrect Passcode');
         enteredPin = "";
@@ -1007,9 +1251,14 @@
       }
     }
 
-    // Auto-check session on load
-    if (sessionStorage.getItem('smart_pump_auth') === 'unlocked') {
-      document.getElementById('passcodeOverlay').style.display = 'none';
+    // Check device launch auth
+    if (!localStorage.getItem('pump_device_auth')) {
+      showPasscodeModal('FIRST_LAUNCH');
+    }
+
+    function attemptOpenSettings(btn) {
+      // Settings requires PIN every single time!
+      showPasscodeModal('SETTINGS', btn);
     }
 
     // Initialize Firebase Realtime Cloud
@@ -1027,10 +1276,11 @@
           if (data.voltage !== undefined) liveVoltage = parseFloat(data.voltage);
           if (data.current !== undefined) liveCurrent = parseFloat(data.current);
           if (data.waterLevel !== undefined) liveWaterLevel = parseInt(data.waterLevel);
+          if (data.overflow !== undefined) isOverflowTripped = !!data.overflow;
+          if (data.intakeFlow !== undefined) isIntakeFlowing = !!data.intakeFlow;
           if (data.fault !== undefined) activeFault = data.fault;
-          if (data.pumpRunning !== undefined) {
-            updatePumpState(data.pumpRunning);
-          }
+          if (data.mode !== undefined) updateMode(data.mode);
+          if (data.pumpRunning !== undefined) updatePumpState(data.pumpRunning);
           renderDashboard();
         }
       });
@@ -1040,6 +1290,15 @@
         const s = snapshot.val();
         if (s) {
           if (s.passcode) masterPasscode = String(s.passcode);
+          if (s.autoFillEnabled !== undefined) {
+            autoFillEnabled = !!s.autoFillEnabled;
+            document.getElementById('autofillToggle').checked = autoFillEnabled;
+            updateAutoFillSubText();
+          }
+          if (s.autoStartPct) setSliderValue('autoStartPct', s.autoStartPct, '%');
+          if (s.autoStopPct) setSliderValue('autoStopPct', s.autoStopPct, '%');
+          if (s.gardenSwitchDelaySec) setSliderValue('gardenSwitchDelaySec', s.gardenSwitchDelaySec, ' s');
+          if (s.gardenMaxRuntimeMin !== undefined) setGardenRuntimeSlider(s.gardenMaxRuntimeMin);
           if (s.dryRunAmps) setSliderValue('dryRunAmps', s.dryRunAmps, ' A');
           if (s.overloadAmps) setSliderValue('overloadAmps', s.overloadAmps, ' A');
           if (s.lowVoltage) setSliderValue('lowVoltage', s.lowVoltage, ' V');
@@ -1050,56 +1309,47 @@
         }
       });
 
-      // 3. Listen for Event Logs
+      // 3. Prune old logs & fetch
+      pruneOldLogs();
       fetchLogs();
     } catch (err) {
-      console.warn("Cloud connection notice:", err);
+      console.warn("Cloud connection note:", err);
       document.getElementById('statusDot').className = 'status-dot amber';
       document.getElementById('statusLabel').innerText = isLocalHost ? 'Local Direct' : 'Connecting...';
     }
 
-    // Local ESP32 Direct Polling (Fallback for zero-internet / local Wi-Fi)
-    if (isLocalHost) {
-      setInterval(() => {
-        fetch('/status')
-          .then(res => res.json())
-          .then(data => {
-            if (data.voltage !== undefined) liveVoltage = data.voltage;
-            if (data.current !== undefined) liveCurrent = data.current;
-            if (data.waterLevel !== undefined) liveWaterLevel = data.waterLevel;
-            if (data.running !== undefined) updatePumpState(data.running);
-            renderDashboard();
-          })
-          .catch(e => console.log('Local poll note:', e));
-      }, 2000);
-    }
-
     // Render Real Telemetry on Dashboard
     function renderDashboard() {
-      // Water level capsule
+      // Liquid fill & percentage
       const fillEl = document.getElementById('liquidFill');
       const levelPctEl = document.getElementById('levelPct');
-      const levelSubEl = document.getElementById('levelSub');
-      const foilStatusEl = document.getElementById('foilStatus');
-
       fillEl.style.height = `${liveWaterLevel}%`;
       levelPctEl.innerText = `${liveWaterLevel}%`;
 
-      if (liveWaterLevel >= 100) {
-        levelSubEl.innerText = 'Tank 100% Full (Auto-Stop)';
-        foilStatusEl.innerText = 'Foil Sensor: TRIPPED';
-        foilStatusEl.style.color = 'var(--status-negative)';
+      // Intake sensor ELE11
+      const inletEl = document.getElementById('inletStatus');
+      const inletTxt = document.getElementById('inletStatusText');
+      if (isIntakeFlowing) {
+        inletEl.className = 'inlet-status wet';
+        inletTxt.innerText = 'Intake: Flowing (ELE11)';
       } else {
-        const heightFt = (liveWaterLevel * 5.0 / 100.0).toFixed(1);
-        levelSubEl.innerText = `${heightFt} ft depth`;
-        foilStatusEl.innerText = 'Foil Sensor: ARMED';
-        foilStatusEl.style.color = 'var(--accent-water)';
+        inletEl.className = 'inlet-status dry';
+        inletTxt.innerText = 'Intake: Dry (ELE11)';
       }
 
-      // Volt, Amp, Power Metrics
+      // Overflow sensor ELE10
+      const overflowEl = document.getElementById('overflowStatus');
+      if (isOverflowTripped || liveWaterLevel >= 100) {
+        overflowEl.innerText = 'Overflow Sensor: TRIPPED (ELE10)';
+        overflowEl.style.color = 'var(--status-negative)';
+      } else {
+        overflowEl.innerText = 'Overflow Sensor: Armed (ELE10)';
+        overflowEl.style.color = 'var(--text-muted)';
+      }
+
+      // Metrics
       document.getElementById('voltageVal').innerText = `${liveVoltage.toFixed(1)} V`;
       document.getElementById('currentVal').innerText = `${liveCurrent.toFixed(1)} A`;
-      
       const kw = (liveVoltage * liveCurrent * 0.85 / 1000.0).toFixed(2);
       document.getElementById('powerVal').innerText = `${kw} kW`;
 
@@ -1107,6 +1357,30 @@
       if (activeFault && activeFault !== 'NONE') {
         document.getElementById('statusDot').className = 'status-dot red';
         document.getElementById('statusLabel').innerText = `Trip: ${activeFault}`;
+      }
+    }
+
+    function updateMode(mode) {
+      currentMode = mode;
+      const pill = document.getElementById('modePill');
+
+      if (mode === 'GARDEN') {
+        pill.className = 'mode-pill garden';
+        pill.innerText = '🌿 Garden Mode Active';
+        sendPushNotification('🌿 Garden Mode Active', 'Water diverted to garden/field. Running safely.');
+      } else if (mode === 'AUTOFILL') {
+        pill.className = 'mode-pill autofill';
+        pill.innerText = '💧 Auto Tank Filling';
+      } else if (mode === 'MANUAL') {
+        pill.className = 'mode-pill manual';
+        pill.innerText = '⚡ Manual Pumping';
+      } else if (mode === 'VALVE_ERROR') {
+        pill.className = 'mode-pill error';
+        pill.innerText = '🛑 Valve Open Error';
+        sendPushNotification('🚨 Valve Open Error', 'Pump stopped: water not reaching tank after 120s.');
+      } else {
+        pill.className = 'mode-pill';
+        pill.innerText = 'Standby';
       }
     }
 
@@ -1127,7 +1401,7 @@
       }
     }
 
-    // Start / Stop Pump Action
+    // 1-Tap Start / Stop Pump Action (No Password Required)
     function togglePump() {
       if (activeFault && activeFault !== 'NONE') {
         showToast(`Cannot start: Fault active (${activeFault})`);
@@ -1141,13 +1415,14 @@
         // Send STOP command
         if (db) {
           db.ref('command').set({ action: 'STOP', timestamp: Date.now() });
-          logEvent('🛑 Pump Stopped', 'Command sent via web app');
+          logEvent('🛑 Pump Stopped', 'Manual stop commanded from dashboard');
         }
         if (isLocalHost) {
           fetch('/stop', { method: 'POST' }).catch(e => console.log(e));
         }
         updatePumpState(false);
-        showToast('Stop command dispatched');
+        showToast('Stop command sent');
+        sendPushNotification('Pump Stopped', 'Water pump turned off.');
       } else {
         // Send START command (Starts 1.8s pulse on Relay 2)
         isContactorStarting = true;
@@ -1156,7 +1431,7 @@
 
         if (db) {
           db.ref('command').set({ action: 'START', timestamp: Date.now() });
-          logEvent('⚡ Pump Starting', `Relay 2 fired (${currentSettings.startPulseSec}s start capacitor pulse)`);
+          logEvent('⚡ Pump Starting', `Relay 2 fired (${currentSettings.startPulseSec}s pulse)`);
         }
         if (isLocalHost) {
           fetch('/start', { method: 'POST' }).catch(e => console.log(e));
@@ -1166,7 +1441,28 @@
           isContactorStarting = false;
           updatePumpState(true);
           showToast('Contactor latched');
+          sendPushNotification('Pump Started', 'Water pump running.');
         }, currentSettings.startPulseSec * 1000);
+      }
+    }
+
+    // Auto-Fill Toggle Switch
+    function toggleAutoFill(enabled) {
+      autoFillEnabled = enabled;
+      if (db) {
+        db.ref('settings/autoFillEnabled').set(enabled);
+        logEvent('⚙️ Auto-Fill Toggled', enabled ? 'Auto-Fill Enabled' : 'Auto-Fill Disabled');
+      }
+      updateAutoFillSubText();
+      showToast(enabled ? 'Auto-Fill Enabled' : 'Auto-Fill Disabled');
+    }
+
+    function updateAutoFillSubText() {
+      const el = document.getElementById('autofillSubText');
+      if (autoFillEnabled) {
+        el.innerText = `Armed: Starts below ${currentSettings.autoStartPct}%, stops at ${currentSettings.autoStopPct}%`;
+      } else {
+        el.innerText = 'Disabled: Manual control only';
       }
     }
 
@@ -1200,8 +1496,30 @@
       }
     }
 
+    function updateGardenRuntimeLabel() {
+      const val = parseInt(document.getElementById('gardenMaxRuntimeMin').value);
+      const label = document.getElementById('gardenMaxRuntimeMinVal');
+      if (val >= 195) {
+        label.innerText = '∞ (Infinite)';
+      } else {
+        label.innerText = val + ' min';
+      }
+    }
+
+    function setGardenRuntimeSlider(val) {
+      const el = document.getElementById('gardenMaxRuntimeMin');
+      if (el) {
+        el.value = val;
+        updateGardenRuntimeLabel();
+      }
+    }
+
     function promptSaveSettings() {
       pendingSettings = {
+        autoStartPct: parseInt(document.getElementById('autoStartPct').value),
+        autoStopPct: parseInt(document.getElementById('autoStopPct').value),
+        gardenSwitchDelaySec: parseInt(document.getElementById('gardenSwitchDelaySec').value),
+        gardenMaxRuntimeMin: parseInt(document.getElementById('gardenMaxRuntimeMin').value),
         dryRunAmps: parseFloat(document.getElementById('dryRunAmps').value),
         overloadAmps: parseFloat(document.getElementById('overloadAmps').value),
         lowVoltage: parseInt(document.getElementById('lowVoltage').value),
@@ -1210,14 +1528,17 @@
         watchdogSec: parseInt(document.getElementById('watchdogSec').value)
       };
 
+      const gRuntimeText = pendingSettings.gardenMaxRuntimeMin >= 195 ? '∞ Infinite' : pendingSettings.gardenMaxRuntimeMin + ' min';
+
       const diffMsg = `
-        <strong>New Safety Cutoff Limits:</strong><br>
-        • Overload Trip: <strong>${pendingSettings.overloadAmps} A</strong> (was ${currentSettings.overloadAmps}A)<br>
-        • Dry-Run Trip: <strong>${pendingSettings.dryRunAmps} A</strong> (was ${currentSettings.dryRunAmps}A)<br>
-        • Voltage Bounds: <strong>${pendingSettings.lowVoltage}V – ${pendingSettings.highVoltage}V</strong><br>
-        • Start Pulse Hold: <strong>${pendingSettings.startPulseSec} s</strong><br>
-        • ESP-NOW Watchdog: <strong>${pendingSettings.watchdogSec} s</strong><br><br>
-        These values will be saved to the ESP32 Flash memory. Proceed?
+        <strong>Confirm New Safety Configuration:</strong><br>
+        • Auto-Fill Window: <strong>${pendingSettings.autoStartPct}% – ${pendingSettings.autoStopPct}%</strong><br>
+        • Garden Switch Delay: <strong>${pendingSettings.gardenSwitchDelaySec} s</strong><br>
+        • Garden Max Runtime: <strong>${gRuntimeText}</strong><br>
+        • Overload Trip: <strong>${pendingSettings.overloadAmps} A</strong><br>
+        • Dry-Run Trip: <strong>${pendingSettings.dryRunAmps} A</strong><br>
+        • Voltage Bounds: <strong>${pendingSettings.lowVoltage}V – ${pendingSettings.highVoltage}V</strong><br><br>
+        These values will be written to ESP32 Flash memory. Proceed?
       `;
 
       document.getElementById('modalDiffText').innerHTML = diffMsg;
@@ -1235,11 +1556,12 @@
 
       if (db) {
         db.ref('settings').update(currentSettings);
-        logEvent('⚙️ Settings Updated', `Overload: ${currentSettings.overloadAmps}A | Dry-Run: ${currentSettings.dryRunAmps}A | Voltage: ${currentSettings.lowVoltage}-${currentSettings.highVoltage}V`);
+        logEvent('⚙️ Settings Updated', `Auto: ${currentSettings.autoStartPct}-${currentSettings.autoStopPct}% | Garden Delay: ${currentSettings.gardenSwitchDelaySec}s | Overload: ${currentSettings.overloadAmps}A`);
       }
 
+      updateAutoFillSubText();
       closeModal();
-      showToast('Settings saved to hardware');
+      showToast('Settings applied to hardware');
     }
 
     // Passcode Change Function
@@ -1259,7 +1581,7 @@
       masterPasscode = newPin;
       if (db) {
         db.ref('settings/passcode').set(newPin);
-        logEvent('🔑 Passcode Changed', 'Security PIN updated by user');
+        logEvent('🔑 Passcode Changed', 'Master access PIN updated by user');
       }
 
       document.getElementById('currentPinInput').value = '';
@@ -1267,7 +1589,53 @@
       showToast('Passcode updated successfully');
     }
 
-    // Logs System
+    // Toggle Audio Feedback
+    function toggleAudio(enabled) {
+      currentSettings.audioEnabled = enabled;
+      if (db) db.ref('settings/audioEnabled').set(enabled);
+      showToast(enabled ? 'Audio Feedback Enabled' : 'Audio Muted');
+    }
+
+    // Toggle Push Notifications (Web Notifications API)
+    function togglePushNotifications(enabled) {
+      if (enabled) {
+        if ('Notification' in window) {
+          Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+              currentSettings.notificationsEnabled = true;
+              if (db) db.ref('settings/notificationsEnabled').set(true);
+              showToast('Notifications Activated');
+              sendPushNotification('Smart Pump Notifications', 'Alerts and mode banners activated.');
+            } else {
+              document.getElementById('notifyToggle').checked = false;
+              showToast('Notification permission denied');
+            }
+          });
+        } else {
+          document.getElementById('notifyToggle').checked = false;
+          showToast('Browser does not support notifications');
+        }
+      } else {
+        currentSettings.notificationsEnabled = false;
+        if (db) db.ref('settings/notificationsEnabled').set(false);
+        showToast('Notifications Disabled');
+      }
+    }
+
+    function sendPushNotification(title, body) {
+      if (currentSettings.notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body: body,
+            icon: './icon-192.png'
+          });
+        } catch (e) {
+          console.log('Notification trigger error:', e);
+        }
+      }
+    }
+
+    // Logs System with 15-Day Auto-Pruning
     function logEvent(title, desc) {
       if (!db) return;
       const newLogRef = db.ref('logs').push();
@@ -1278,9 +1646,23 @@
       });
     }
 
+    function pruneOldLogs() {
+      if (!db) return;
+      const cutoffTime = Date.now() - (15 * 86400 * 1000); // 15 days ago
+      db.ref('logs').orderByChild('timestamp').endAt(cutoffTime).once('value', (snapshot) => {
+        const updates = {};
+        snapshot.forEach((child) => {
+          updates[child.key] = null;
+        });
+        if (Object.keys(updates).length > 0) {
+          db.ref('logs').update(updates);
+        }
+      });
+    }
+
     function fetchLogs() {
       if (!db) return;
-      db.ref('logs').limitToLast(25).once('value', (snapshot) => {
+      db.ref('logs').limitToLast(30).once('value', (snapshot) => {
         const feed = document.getElementById('logFeed');
         const logs = [];
         snapshot.forEach((child) => {
@@ -1288,17 +1670,18 @@
         });
 
         if (logs.length === 0) {
-          feed.innerHTML = '<div style="color: var(--text-muted); padding: 10px; font-size: 12px;">No logged events yet.</div>';
+          feed.innerHTML = '<div style="color: var(--text-muted); padding: 10px; font-size: 12px;">No logged events in past 15 days.</div>';
           return;
         }
 
         let html = '';
         logs.forEach((item) => {
           const date = new Date(item.timestamp || Date.now());
-          const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          const isAlert = item.title.includes('Trip') || item.title.includes('Fault') || item.title.includes('Cutoff');
+          const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+          const isAlert = item.title.includes('Trip') || item.title.includes('Fault') || item.title.includes('Error');
+          const isPurple = item.title.includes('Garden');
           const isWarn = item.title.includes('⚙️') || item.title.includes('Watchdog');
-          const typeClass = isAlert ? 'alert' : (isWarn ? 'warning' : 'success');
+          const typeClass = isAlert ? 'alert' : (isPurple ? 'purple' : (isWarn ? 'warning' : 'success'));
 
           html += `
             <div class="log-item ${typeClass}">
