@@ -1378,6 +1378,19 @@
       showPasscodeModal('SETTINGS', btn);
     }
 
+    // Robust Telemetry Parsers (Null & NaN Safe)
+    function parseSafeFloat(val) {
+      if (val === null || val === undefined || val === '') return null;
+      const n = parseFloat(val);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function parseSafeInt(val) {
+      if (val === null || val === undefined || val === '') return null;
+      const n = parseInt(val, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+
     // Initialize Firebase Realtime Cloud
     try {
       firebase.initializeApp(firebaseConfig);
@@ -1400,18 +1413,18 @@
         const data = snapshot.val();
         if (data) {
           markTelemetryFresh();
-          if (data.voltage !== undefined) liveVoltage = parseFloat(data.voltage);
-          if (data.current !== undefined) liveCurrent = parseFloat(data.current);
-          if (data.power !== undefined) livePower = parseFloat(data.power);
-          if (data.waterLevel !== undefined) liveWaterLevel = parseInt(data.waterLevel);
+          if (data.voltage !== undefined) liveVoltage = parseSafeFloat(data.voltage);
+          if (data.current !== undefined) liveCurrent = parseSafeFloat(data.current);
+          if (data.power !== undefined) livePower = parseSafeFloat(data.power);
+          if (data.waterLevel !== undefined) liveWaterLevel = parseSafeInt(data.waterLevel);
           if (data.overflow !== undefined) isOverflowTripped = !!data.overflow;
           if (data.intakeFlow !== undefined) isIntakeFlowing = !!data.intakeFlow;
-          if (data.fault !== undefined) activeFault = data.fault;
+          if (data.fault !== undefined) activeFault = data.fault || 'NONE';
           if (data.linkOnline !== undefined) linkOnline = !!data.linkOnline;
-          if (data.linkRssi !== undefined) linkRssi = parseInt(data.linkRssi);
-          if (data.linkSnr !== undefined) linkSnr = parseInt(data.linkSnr);
-          if (data.mode !== undefined) updateMode(data.mode);
-          if (data.pumpRunning !== undefined) updatePumpState(data.pumpRunning);
+          if (data.linkRssi !== undefined) linkRssi = parseSafeInt(data.linkRssi);
+          if (data.linkSnr !== undefined) linkSnr = parseSafeInt(data.linkSnr);
+          if (data.mode !== undefined && data.mode !== null) updateMode(data.mode);
+          if (data.pumpRunning !== undefined && data.pumpRunning !== null) updatePumpState(!!data.pumpRunning);
           updateLinkStatus(linkOnline, linkRssi, linkSnr);
           renderDashboard();
         }
@@ -1458,18 +1471,18 @@
           .then(data => {
             if (data) {
               markTelemetryFresh();
-              if (data.voltage !== undefined) liveVoltage = parseFloat(data.voltage);
-              if (data.current !== undefined) liveCurrent = parseFloat(data.current);
-              if (data.power !== undefined) livePower = parseFloat(data.power);
-              if (data.waterLevel !== undefined) liveWaterLevel = parseInt(data.waterLevel);
+              if (data.voltage !== undefined) liveVoltage = parseSafeFloat(data.voltage);
+              if (data.current !== undefined) liveCurrent = parseSafeFloat(data.current);
+              if (data.power !== undefined) livePower = parseSafeFloat(data.power);
+              if (data.waterLevel !== undefined) liveWaterLevel = parseSafeInt(data.waterLevel);
               if (data.overflow !== undefined) isOverflowTripped = !!data.overflow;
               if (data.intakeFlow !== undefined) isIntakeFlowing = !!data.intakeFlow;
-              if (data.fault !== undefined) activeFault = data.fault;
+              if (data.fault !== undefined) activeFault = data.fault || 'NONE';
               if (data.linkOnline !== undefined) linkOnline = !!data.linkOnline;
-              if (data.linkRssi !== undefined) linkRssi = parseInt(data.linkRssi);
-              if (data.linkSnr !== undefined) linkSnr = parseInt(data.linkSnr);
-              if (data.mode !== undefined) updateMode(data.mode);
-              if (data.pumpRunning !== undefined) updatePumpState(data.pumpRunning);
+              if (data.linkRssi !== undefined) linkRssi = parseSafeInt(data.linkRssi);
+              if (data.linkSnr !== undefined) linkSnr = parseSafeInt(data.linkSnr);
+              if (data.mode !== undefined && data.mode !== null) updateMode(data.mode);
+              if (data.pumpRunning !== undefined && data.pumpRunning !== null) updatePumpState(!!data.pumpRunning);
               updateLinkStatus(linkOnline, linkRssi, linkSnr);
               renderDashboard();
               document.getElementById('statusDot').className = 'status-dot';
@@ -1541,8 +1554,10 @@
       if (online) {
         pill.className = 'link-pill status-pill online';
         dot.className = 'link-dot online';
-        if (rssi && rssi !== 0) {
-          text.innerText = snr ? `Link · ${rssi} dBm · ${snr} dB` : `Link · ${rssi} dBm`;
+        const hasRssi = (rssi !== undefined && rssi !== null && Number(rssi) !== 0 && !isNaN(Number(rssi)));
+        const hasSnr = (snr !== undefined && snr !== null && !isNaN(Number(snr)));
+        if (hasRssi) {
+          text.innerText = hasSnr ? `Link · ${rssi} dBm · ${snr} dB` : `Link · ${rssi} dBm`;
         } else {
           text.innerText = 'Link · Online';
         }
@@ -1582,8 +1597,9 @@
       // Liquid fill & percentage
       const fillEl = document.getElementById('liquidFill');
       const levelPctEl = document.getElementById('levelPct');
-      if (fillEl) fillEl.style.height = `${liveWaterLevel}%`;
-      if (levelPctEl) levelPctEl.innerText = `${liveWaterLevel}%`;
+      const hasWaterLevel = (liveWaterLevel !== null && !isNaN(liveWaterLevel));
+      if (fillEl) fillEl.style.height = hasWaterLevel ? `${Math.min(100, Math.max(0, liveWaterLevel))}%` : '0%';
+      if (levelPctEl) levelPctEl.innerText = hasWaterLevel ? `${liveWaterLevel}%` : '---%';
 
       // Inlet sensor
       const inletEl = document.getElementById('inletStatus');
@@ -1601,7 +1617,7 @@
       // Overflow sensor
       const overflowEl = document.getElementById('overflowStatus');
       if (overflowEl) {
-        if (isOverflowTripped || liveWaterLevel >= 100) {
+        if (isOverflowTripped || (hasWaterLevel && liveWaterLevel >= 100)) {
           overflowEl.innerText = 'Overflow · Tripped';
           overflowEl.style.color = 'var(--status-negative)';
         } else {
@@ -1614,9 +1630,9 @@
       const vEl = document.getElementById('voltageVal');
       const cEl = document.getElementById('currentVal');
       const pEl = document.getElementById('powerVal');
-      if (vEl) vEl.innerText = `${liveVoltage.toFixed(1)} V`;
-      if (cEl) cEl.innerText = `${liveCurrent.toFixed(1)} A`;
-      if (pEl) pEl.innerText = `${livePower.toFixed(0)} W`;
+      if (vEl) vEl.innerText = (liveVoltage !== null && !isNaN(liveVoltage)) ? `${Number(liveVoltage).toFixed(1)} V` : '--- V';
+      if (cEl) cEl.innerText = (liveCurrent !== null && !isNaN(liveCurrent)) ? `${Number(liveCurrent).toFixed(1)} A` : '--- A';
+      if (pEl) pEl.innerText = (livePower !== null && !isNaN(livePower)) ? `${Number(livePower).toFixed(0)} W` : '--- W';
 
       // Actionable Trip Alert Banner
       const alertBanner = document.getElementById('alertBanner');
@@ -1671,7 +1687,8 @@
 
       if (isPumpRunning) {
         btn.className = 'pump-btn running';
-        text.innerText = `Stop Pump (${liveCurrent.toFixed(1)} A)`;
+        const hasCurrent = (liveCurrent !== null && !isNaN(liveCurrent));
+        text.innerText = hasCurrent ? `Stop Pump (${Number(liveCurrent).toFixed(1)} A)` : 'Stop Pump';
         startRuntimeCounter();
       } else {
         btn.className = 'pump-btn';
