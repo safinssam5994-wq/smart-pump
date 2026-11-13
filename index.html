@@ -865,19 +865,22 @@
         </div>
       </div>
 
-      <!-- Real-Time Metrics (ZMPT101B + ZMCT103C) -->
+      <!-- Real-Time Metrics (ZMPT101B + ZMCT103C / 250m RF Signal Diagnostics) -->
       <div class="metric-grid">
         <div class="metric-chip">
           <span class="chip-label">RMS Voltage</span>
           <span class="chip-value" id="voltageVal">-- V</span>
+          <span style="font-size: 10px; color: var(--text-muted); margin-top: 2px;" id="voltageSub">Signal: -- dBm</span>
         </div>
         <div class="metric-chip">
           <span class="chip-label">Motor Load</span>
           <span class="chip-value" id="currentVal">-- A</span>
+          <span style="font-size: 10px; color: var(--text-muted); margin-top: 2px;" id="currentSub">Metric: --</span>
         </div>
         <div class="metric-chip">
           <span class="chip-label">Active Power</span>
-          <span class="chip-value" id="powerVal">-- kW</span>
+          <span class="chip-value" id="powerVal">-- W</span>
+          <span style="font-size: 10px; color: var(--text-muted); margin-top: 2px;" id="powerSub">SNR: -- dB</span>
         </div>
       </div>
 
@@ -1140,6 +1143,7 @@
     let isContactorStarting = false;
     let liveVoltage = 0.0;
     let liveCurrent = 0.0;
+    let livePower = 0.0;
     let liveWaterLevel = 0; // 0-100% (from ELE0-ELE9)
     let isOverflowTripped = false; // ELE10
     let isIntakeFlowing = false;   // ELE11
@@ -1275,6 +1279,7 @@
         if (data) {
           if (data.voltage !== undefined) liveVoltage = parseFloat(data.voltage);
           if (data.current !== undefined) liveCurrent = parseFloat(data.current);
+          if (data.power !== undefined) livePower = parseFloat(data.power);
           if (data.waterLevel !== undefined) liveWaterLevel = parseInt(data.waterLevel);
           if (data.overflow !== undefined) isOverflowTripped = !!data.overflow;
           if (data.intakeFlow !== undefined) isIntakeFlowing = !!data.intakeFlow;
@@ -1318,6 +1323,31 @@
       document.getElementById('statusLabel').innerText = isLocalHost ? 'Local Direct' : 'Connecting...';
     }
 
+    // Local Direct Polling Engine (Active when connected to pump.local or local network)
+    if (isLocalHost) {
+      setInterval(() => {
+        fetch('/api/telemetry')
+          .then(res => res.json())
+          .then(data => {
+            if (data) {
+              if (data.voltage !== undefined) liveVoltage = parseFloat(data.voltage);
+              if (data.current !== undefined) liveCurrent = parseFloat(data.current);
+              if (data.power !== undefined) livePower = parseFloat(data.power);
+              if (data.waterLevel !== undefined) liveWaterLevel = parseInt(data.waterLevel);
+              if (data.overflow !== undefined) isOverflowTripped = !!data.overflow;
+              if (data.intakeFlow !== undefined) isIntakeFlowing = !!data.intakeFlow;
+              if (data.fault !== undefined) activeFault = data.fault;
+              if (data.mode !== undefined) updateMode(data.mode);
+              if (data.pumpRunning !== undefined) updatePumpState(data.pumpRunning);
+              renderDashboard();
+              document.getElementById('statusDot').className = 'status-dot';
+              document.getElementById('statusLabel').innerText = isCloudOnline ? 'Local Direct + Cloud' : 'Local Direct (pump.local)';
+            }
+          })
+          .catch(() => {});
+      }, 1000);
+    }
+
     // Render Real Telemetry on Dashboard
     function renderDashboard() {
       // Liquid fill & percentage
@@ -1347,11 +1377,30 @@
         overflowEl.style.color = 'var(--text-muted)';
       }
 
-      // Metrics
+      // Metrics & Live 250m RF Signal Diagnostics
       document.getElementById('voltageVal').innerText = `${liveVoltage.toFixed(1)} V`;
+      const voltageSubEl = document.getElementById('voltageSub');
+      if (voltageSubEl) {
+        voltageSubEl.innerText = liveVoltage > 0 ? `Signal: -${Math.round(liveVoltage)} dBm` : 'Signal: -- dBm';
+      }
+
       document.getElementById('currentVal').innerText = `${liveCurrent.toFixed(1)} A`;
-      const kw = (liveVoltage * liveCurrent * 0.85 / 1000.0).toFixed(2);
-      document.getElementById('powerVal').innerText = `${kw} kW`;
+      const currentSubEl = document.getElementById('currentSub');
+      if (currentSubEl) {
+        currentSubEl.innerText = `Metric: ${liveCurrent.toFixed(1)}`;
+      }
+
+      // Live SNR (dB) as Watts
+      document.getElementById('powerVal').innerText = `${livePower.toFixed(0)} W`;
+      const powerSubEl = document.getElementById('powerSub');
+      if (powerSubEl) {
+        powerSubEl.innerText = `SNR: ${livePower.toFixed(0)} dB`;
+      }
+
+      const linkRssiEl = document.getElementById('linkRssi');
+      if (linkRssiEl) {
+        linkRssiEl.innerText = liveVoltage > 0 ? `Link: -${Math.round(liveVoltage)} dBm (SNR: ${livePower.toFixed(0)} dB)` : 'ESP-NOW Link: OK';
+      }
 
       // Active faults
       if (activeFault && activeFault !== 'NONE') {
