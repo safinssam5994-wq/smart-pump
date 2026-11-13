@@ -55,11 +55,11 @@ const uint8_t INDEX_HTML_GZ[] PROGMEM = {
 // ------------------------------------------------------------------------------
 // 1. WI-FI & FIREBASE CREDENTIALS
 // ------------------------------------------------------------------------------
-const char* WIFI_SSID     = "Xiaomi_A1C5";
-const char* WIFI_PASSWORD = "20safinssam03";
+const char* WIFI_SSID     = "YOUR_HOME_WIFI_NAME";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 const char* FIREBASE_HOST = "https://smart-pump-ba1a0-default-rtdb.asia-southeast1.firebasedatabase.app";
-const char* FIREBASE_AUTH = "T3c1eQVbEMTlLNNZVtW5agBTafJE0tH7YGlODje5";
+const char* FIREBASE_AUTH = "YOUR_FIREBASE_AUTH_SECRET";
 
 // Pump Node MAC (Replace with your pump ESP32 MAC, e.g. {0x68, 0x09, 0x47, 0x4E, 0x84, 0xC0})
 uint8_t pumpNodeMac[] = {0x68, 0x09, 0x47, 0x4E, 0x84, 0xC0};
