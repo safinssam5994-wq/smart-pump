@@ -27,6 +27,15 @@
 // ==============================================================================
 
 #include <Arduino.h>
+#if __has_include(<esp_arduino_version.h>)
+#include <esp_arduino_version.h>
+#endif
+#ifndef ESP_ARDUINO_VERSION_VAL
+#define ESP_ARDUINO_VERSION_VAL(major, minor, patch) ((major << 16) | (minor << 8) | (patch))
+#endif
+#ifndef ESP_ARDUINO_VERSION
+#define ESP_ARDUINO_VERSION 0
+#endif
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
