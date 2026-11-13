@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // 250m Smart Pump House Automation â€” Node 1: Tank & Home Controller Firmware
 // ==============================================================================
 // Target MCU: ESP32 NodeMCU (30-pin)
@@ -19,6 +19,15 @@
 // ==============================================================================
 
 #include <Arduino.h>
+#if __has_include(<esp_arduino_version.h>)
+#include <esp_arduino_version.h>
+#endif
+#ifndef ESP_ARDUINO_VERSION_VAL
+#define ESP_ARDUINO_VERSION_VAL(major, minor, patch) ((major << 16) | (minor << 8) | (patch))
+#endif
+#ifndef ESP_ARDUINO_VERSION
+#define ESP_ARDUINO_VERSION 0
+#endif
 #include <Wire.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -46,8 +55,8 @@ const uint8_t INDEX_HTML_GZ[] PROGMEM = {
 // ------------------------------------------------------------------------------
 // 1. WI-FI & FIREBASE CREDENTIALS
 // ------------------------------------------------------------------------------
-const char* WIFI_SSID     = "YOUR_HOME_WIFI_NAME";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID     = "Xiaomi_A1C5";
+const char* WIFI_PASSWORD = "20safinssam03";
 
 const char* FIREBASE_HOST = "https://smart-pump-ba1a0-default-rtdb.asia-southeast1.firebasedatabase.app";
 const char* FIREBASE_AUTH = "T3c1eQVbEMTlLNNZVtW5agBTafJE0tH7YGlODje5";
@@ -169,9 +178,15 @@ esp_now_peer_info_t peerInfo;
 // AUDIO SYSTEM
 // ------------------------------------------------------------------------------
 void playTone(int freq, int durationMs) {
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  ledcWriteTone(BUZZER_PIN, freq);
+  delay(durationMs);
+  ledcWriteTone(BUZZER_PIN, 0);
+#else
   ledcWriteTone(BUZZER_PWM_CHANNEL, freq);
   delay(durationMs);
   ledcWriteTone(BUZZER_PWM_CHANNEL, 0);
+#endif
 }
 
 void playChimeStart() {
@@ -517,8 +532,12 @@ void setup() {
   pinMode(BUTTON_STOP_PIN, INPUT_PULLUP);
 
   // Buzzer PWM
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  ledcAttach(BUZZER_PIN, 2000, BUZZER_PWM_RESOLUTION);
+#else
   ledcSetup(BUZZER_PWM_CHANNEL, 2000, BUZZER_PWM_RESOLUTION);
   ledcAttachPin(BUZZER_PIN, BUZZER_PWM_CHANNEL);
+#endif
 
   // NVS Preferences
   prefs.begin("smartpump", false);
