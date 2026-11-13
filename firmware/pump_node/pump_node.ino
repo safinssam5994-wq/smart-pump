@@ -201,12 +201,14 @@ void promiscuousRxCallback(void* buf, wifi_promiscuous_pkt_type_t type) {
 // ------------------------------------------------------------------------------
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
 void OnDataRecv(const esp_now_recv_info_t *recv_info, const uint8_t *incomingDataRaw, int len) {
+  if (!recv_info || !recv_info->src_addr || !incomingDataRaw) return;
   const uint8_t *senderMac = recv_info->src_addr;
-  if (recv_info && recv_info->rx_ctrl) {
+  if (recv_info->rx_ctrl) {
     latestRssiDbm = recv_info->rx_ctrl->rssi;
   }
 #else
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingDataRaw, int len) {
+  if (!mac_addr || !incomingDataRaw) return;
   const uint8_t *senderMac = mac_addr;
 #endif
 
