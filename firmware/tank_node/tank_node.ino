@@ -317,6 +317,14 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int len) {
     memcpy(&rxTelemetry, data, sizeof(PumpTelemetryPacket));
     lastTelemetryRecvMs = millis();
     pumpIsRunning = rxTelemetry.isRunning;
+    if (rxTelemetry.faultCode == 1) activeFault = "CONTACTOR_FAIL";
+    else if (rxTelemetry.faultCode == 2) activeFault = "DRY_RUN";
+    else if (rxTelemetry.faultCode == 3) activeFault = "OVERLOAD";
+    else if (rxTelemetry.faultCode == 4) activeFault = "WATCHDOG_TIMEOUT";
+    else if (rxTelemetry.faultCode == 5) activeFault = "LOW_VOLTAGE";
+    else if (rxTelemetry.faultCode == 6) activeFault = "HIGH_VOLTAGE";
+    else if (rxTelemetry.faultCode == 7) activeFault = "VALVE_OPEN";
+    else if (rxTelemetry.faultCode == 0 && activeFault != "VALVE_OPEN") activeFault = "NONE";
   }
 }
 
@@ -731,35 +739,41 @@ void loop() {
   if (now - lastSerialReportMs >= 2000) {
     lastSerialReportMs = now;
     bool linkOnline = (lastTelemetryRecvMs > 0 && (now - lastTelemetryRecvMs < 6000));
+    const char* linkStateStr = linkOnline ? "ONLINE" : ((lastTelemetryRecvMs == 0) ? "SEARCHING" : "OFFLINE");
+
     float sigDbm = 0.0f;
     float snrDb  = 0.0f;
+    bool hasSignal = false;
 
-    // In RSSI diagnostic mode: rxTelemetry.voltageRMS is dBm magnitude and rxTelemetry.powerWatts is SNR in dB
-    if (rxTelemetry.voltageRMS > 0.0f && rxTelemetry.voltageRMS < 120.0f) {
+    // In RSSI diagnostic mode: rxTelemetry.voltageRMS is dBm magnitude (30-110) and rxTelemetry.powerWatts is SNR in dB
+    if (linkOnline && rxTelemetry.voltageRMS >= 30.0f && rxTelemetry.voltageRMS <= 110.0f) {
       sigDbm = -rxTelemetry.voltageRMS;
       snrDb  = rxTelemetry.powerWatts;
-    } else if (localRssiDbm != 0) {
+      hasSignal = true;
+    } else if (localRssiDbm != 0 && (linkOnline || (now - lastTelemetryRecvMs < 6000))) {
       sigDbm = (float)localRssiDbm;
       snrDb  = (float)(localRssiDbm - (-95));
       if (snrDb < 0.0f) snrDb = 0.0f;
+      hasSignal = true;
     }
 
-    if (linkOnline && (sigDbm != 0.0f || localRssiDbm != 0)) {
-      float dispSignal = fabsf(sigDbm != 0.0f ? sigDbm : (float)localRssiDbm);
-      Serial.printf("[TANK NODE] Signal: -%.0f dBm | SNR: %.1f dB | Tank: %d%% | Intake: %s | Pump: %s (%s) | Link: ONLINE\n",
+    if (linkOnline && hasSignal) {
+      float dispSignal = fabsf(sigDbm);
+      Serial.printf("[TANK NODE] Signal: -%.0f dBm | SNR: %.1f dB | Tank: %d%% | Intake: %s | Pump: %s (%s) | Link: %s\n",
                     dispSignal,
                     snrDb,
                     tankWaterLevel,
                     isIntakeFlowing ? "FLOWING" : "DRY",
                     pumpIsRunning ? "ON" : "OFF",
-                    currentMode.c_str());
+                    currentMode.c_str(),
+                    linkStateStr);
     } else {
       Serial.printf("[TANK NODE] Signal: --- dBm | SNR: --- dB | Tank: %d%% | Intake: %s | Pump: %s (%s) | Link: %s\n",
                     tankWaterLevel,
                     isIntakeFlowing ? "FLOWING" : "DRY",
                     pumpIsRunning ? "ON" : "OFF",
                     currentMode.c_str(),
-                    (lastTelemetryRecvMs == 0) ? "SEARCHING" : "OFFLINE");
+                    linkStateStr);
     }
   }
 }

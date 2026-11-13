@@ -130,6 +130,8 @@ const float RUN_CONFIRM_AMPS           = 2.0;   // Minimum amps confirming conta
 
 // Live Captured RF Signal Metrics
 volatile int8_t latestRssiDbm       = -75; // Initial fallback RSSI in dBm
+volatile bool newBeaconReceived     = false;
+volatile uint32_t latestBeaconPacketId = 0;
 
 // State Flags
 bool pumpIsRunning          = false;
@@ -197,7 +199,9 @@ const char* pumpStateToString(bool running, bool starting, FaultCode fault) {
 void setRadioChannel(uint8_t ch) {
   esp_wifi_set_promiscuous(true);
   esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
-  esp_wifi_set_promiscuous(false);
+  // Keep promiscuous sniffer active so promiscuousRxCallback captures physical RSSI on Core 2.x & 3.x
+  esp_wifi_set_promiscuous_rx_cb(promiscuousRxCallback);
+  esp_wifi_set_promiscuous(true);
   currentWiFiChannel = ch;
 }
 
@@ -218,6 +222,7 @@ void registerOrUpdatePeer(uint8_t ch) {
 void promiscuousRxCallback(void* buf, wifi_promiscuous_pkt_type_t type) {
   if (type != WIFI_PKT_MGMT && type != WIFI_PKT_DATA) return;
   const wifi_promiscuous_pkt_t *pkt = (wifi_promiscuous_pkt_t*)buf;
+  if (!pkt || pkt->rx_ctrl.sig_len < 16) return;
   const uint8_t *payload = pkt->payload;
   // Offset 10 in 802.11 frame header is the transmitter Source MAC
   if (memcmp(&payload[10], baseNodeMac, 6) == 0) {
@@ -279,14 +284,8 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingDataRaw, int len
       break;
 
     case CMD_BEACON: {
-      static unsigned long lastBeaconLogMs = 0;
-      if (millis() - lastBeaconLogMs >= 2000) {
-        lastBeaconLogMs = millis();
-        float bSnr = (float)(latestRssiDbm - (-95));
-        if (bSnr < 0.0) bSnr = 0.0;
-        Serial.printf("[PUMP NODE] Beacon RX from Tank Node | Ch: %d | RSSI: %d dBm | SNR: %.1f dB | Base Pkt #%u\n",
-                      currentWiFiChannel, latestRssiDbm, bSnr, rxPacket.packetId);
-      }
+      latestBeaconPacketId = rxPacket.packetId;
+      newBeaconReceived = true;
       break;
     }
 
@@ -475,6 +474,19 @@ void loop() {
   if (now - lastTelemetrySentMs >= 2000) {
     lastTelemetrySentMs = now;
     sendTelemetry();
+  }
+
+  // 5. Live Beacon RX Reporting (rate-limited to 2s to avoid flooding Serial)
+  if (newBeaconReceived) {
+    static unsigned long lastBeaconLogMs = 0;
+    if (now - lastBeaconLogMs >= 2000) {
+      lastBeaconLogMs = now;
+      float bSnr = (float)(latestRssiDbm - (-95));
+      if (bSnr < 0.0f) bSnr = 0.0f;
+      Serial.printf("[PUMP NODE] Beacon RX from Tank Node | Ch: %d | RSSI: %d dBm | SNR: %.1f dB | Base Pkt #%u\n",
+                    currentWiFiChannel, latestRssiDbm, bSnr, latestBeaconPacketId);
+    }
+    newBeaconReceived = false;
   }
 }
 
