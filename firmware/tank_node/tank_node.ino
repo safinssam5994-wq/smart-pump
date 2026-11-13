@@ -182,10 +182,12 @@ void playTone(int freq, int durationMs) {
   ledcWriteTone(BUZZER_PIN, freq);
   delay(durationMs);
   ledcWriteTone(BUZZER_PIN, 0);
+  ledcWrite(BUZZER_PIN, 0);
 #else
   ledcWriteTone(BUZZER_PWM_CHANNEL, freq);
   delay(durationMs);
   ledcWriteTone(BUZZER_PWM_CHANNEL, 0);
+  ledcWrite(BUZZER_PWM_CHANNEL, 0);
 #endif
 }
 
@@ -307,7 +309,7 @@ void OnDataRecv(const esp_now_recv_info_t *recv_info, const uint8_t *data, int l
 #else
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int len) {
 #endif
-  if (len == sizeof(PumpTelemetryPacket)) {
+  if (data && len == sizeof(PumpTelemetryPacket)) {
     memcpy(&rxTelemetry, data, sizeof(PumpTelemetryPacket));
     lastTelemetryRecvMs = millis();
     pumpIsRunning = rxTelemetry.isRunning;
@@ -534,9 +536,11 @@ void setup() {
   // Buzzer PWM
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
   ledcAttach(BUZZER_PIN, 2000, BUZZER_PWM_RESOLUTION);
+  ledcWrite(BUZZER_PIN, 0);
 #else
   ledcSetup(BUZZER_PWM_CHANNEL, 2000, BUZZER_PWM_RESOLUTION);
   ledcAttachPin(BUZZER_PIN, BUZZER_PWM_CHANNEL);
+  ledcWrite(BUZZER_PWM_CHANNEL, 0);
 #endif
 
   // NVS Preferences
