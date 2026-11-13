@@ -139,6 +139,7 @@ HTTPClient httpClient;
 
 int activeWiFiChannel = 1;
 bool pumpIsRunning = false;
+volatile int8_t localRssiDbm = 0;
 bool mpr121Detected = false;
 uint16_t mprTouchState = 0;
 
@@ -306,6 +307,9 @@ uint8_t getModeCode() {
 
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
 void OnDataRecv(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len) {
+  if (recv_info && recv_info->rx_ctrl) {
+    localRssiDbm = recv_info->rx_ctrl->rssi;
+  }
 #else
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int len) {
 #endif
@@ -720,6 +724,43 @@ void loop() {
   if (digitalRead(BUTTON_STOP_PIN) == LOW && pumpIsRunning) {
     delay(50);
     if (digitalRead(BUTTON_STOP_PIN) == LOW) triggerManualStop();
+  }
+
+  // 6. Live Serial Monitor Telemetry Reporting (every 2 seconds)
+  static unsigned long lastSerialReportMs = 0;
+  if (now - lastSerialReportMs >= 2000) {
+    lastSerialReportMs = now;
+    bool linkOnline = (lastTelemetryRecvMs > 0 && (now - lastTelemetryRecvMs < 6000));
+    float sigDbm = 0.0f;
+    float snrDb  = 0.0f;
+
+    // In RSSI diagnostic mode: rxTelemetry.voltageRMS is dBm magnitude and rxTelemetry.powerWatts is SNR in dB
+    if (rxTelemetry.voltageRMS > 0.0f && rxTelemetry.voltageRMS < 120.0f) {
+      sigDbm = -rxTelemetry.voltageRMS;
+      snrDb  = rxTelemetry.powerWatts;
+    } else if (localRssiDbm != 0) {
+      sigDbm = (float)localRssiDbm;
+      snrDb  = (float)(localRssiDbm - (-95));
+      if (snrDb < 0.0f) snrDb = 0.0f;
+    }
+
+    if (linkOnline && (sigDbm != 0.0f || localRssiDbm != 0)) {
+      float dispSignal = fabsf(sigDbm != 0.0f ? sigDbm : (float)localRssiDbm);
+      Serial.printf("[TANK NODE] Signal: -%.0f dBm | SNR: %.1f dB | Tank: %d%% | Intake: %s | Pump: %s (%s) | Link: ONLINE\n",
+                    dispSignal,
+                    snrDb,
+                    tankWaterLevel,
+                    isIntakeFlowing ? "FLOWING" : "DRY",
+                    pumpIsRunning ? "ON" : "OFF",
+                    currentMode.c_str());
+    } else {
+      Serial.printf("[TANK NODE] Signal: --- dBm | SNR: --- dB | Tank: %d%% | Intake: %s | Pump: %s (%s) | Link: %s\n",
+                    tankWaterLevel,
+                    isIntakeFlowing ? "FLOWING" : "DRY",
+                    pumpIsRunning ? "ON" : "OFF",
+                    currentMode.c_str(),
+                    (lastTelemetryRecvMs == 0) ? "SEARCHING" : "OFFLINE");
+    }
   }
 }
 

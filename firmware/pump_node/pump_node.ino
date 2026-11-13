@@ -152,7 +152,7 @@ BasePacket rxPacket;
 PumpTelemetryPacket txTelemetry;
 
 // ------------------------------------------------------------------------------
-// 5. FUNCTION DECLARATIONS
+// 5. FUNCTION DECLARATIONS & HELPERS
 // ------------------------------------------------------------------------------
 float readRMSCurrent();
 float readRMSVoltage();
@@ -161,6 +161,35 @@ void executeEmergencyStop(FaultCode reason);
 void sendTelemetry();
 void setRadioChannel(uint8_t ch);
 void registerOrUpdatePeer(uint8_t ch);
+
+const char* modeToString(uint8_t mode) {
+  switch (mode) {
+    case MODE_STANDBY:     return "STANDBY";
+    case MODE_MANUAL:      return "MANUAL";
+    case MODE_AUTOFILL:    return "AUTOFILL";
+    case MODE_GARDEN:      return "GARDEN";
+    case MODE_VALVE_ERROR: return "VALVE_ERROR";
+    default:               return "UNKNOWN";
+  }
+}
+
+const char* pumpStateToString(bool running, bool starting, FaultCode fault) {
+  if (fault != FAULT_NONE) {
+    switch (fault) {
+      case FAULT_CONTACTOR_FAIL:   return "FAULT_CONTACTOR";
+      case FAULT_DRY_RUN:          return "FAULT_DRY_RUN";
+      case FAULT_OVERLOAD:         return "FAULT_OVERLOAD";
+      case FAULT_WATCHDOG_TIMEOUT: return "FAULT_TIMEOUT";
+      case FAULT_LOW_VOLTAGE:      return "FAULT_LOW_V";
+      case FAULT_HIGH_VOLTAGE:     return "FAULT_HIGH_V";
+      case FAULT_VALVE_OPEN:       return "FAULT_VALVE_OPEN";
+      default:                     return "FAULT";
+    }
+  }
+  if (starting) return "STARTING";
+  if (running)  return "RUNNING";
+  return "STOPPED";
+}
 
 // ------------------------------------------------------------------------------
 // 6. CHANNEL MANAGEMENT & PEER REGISTRATION
@@ -249,7 +278,18 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingDataRaw, int len
       executeEmergencyStop(FAULT_NONE);
       break;
 
-    case CMD_BEACON:
+    case CMD_BEACON: {
+      static unsigned long lastBeaconLogMs = 0;
+      if (millis() - lastBeaconLogMs >= 2000) {
+        lastBeaconLogMs = millis();
+        float bSnr = (float)(latestRssiDbm - (-95));
+        if (bSnr < 0.0) bSnr = 0.0;
+        Serial.printf("[PUMP NODE] Beacon RX from Tank Node | Ch: %d | RSSI: %d dBm | SNR: %.1f dB | Base Pkt #%u\n",
+                      currentWiFiChannel, latestRssiDbm, bSnr, rxPacket.packetId);
+      }
+      break;
+    }
+
     case CMD_CONFIG:
       // Heartbeat/Config: refreshed lastPacketRecvMs
       break;
@@ -581,4 +621,13 @@ void sendTelemetry() {
 #endif
 
   esp_now_send(baseNodeMac, (uint8_t *)&txTelemetry, sizeof(txTelemetry));
+
+  // Live structured Serial Monitor reporting (every 2s telemetry sync)
+  float liveSnr = (float)(latestRssiDbm - (-95));
+  if (liveSnr < 0.0) liveSnr = 0.0;
+  const char* stateStr = pumpStateToString(pumpIsRunning, startingSequenceActive, activeFaultCode);
+  const char* modeStr = modeToString(activeModeCode);
+
+  Serial.printf("[PUMP NODE] Ch: %d | RSSI: %d dBm | SNR: %.1f dB | State: %s | Mode: %s | Packet #%u\n",
+                currentWiFiChannel, latestRssiDbm, liveSnr, stateStr, modeStr, txTelemetry.packetId);
 }
