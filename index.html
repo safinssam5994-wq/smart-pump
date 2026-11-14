@@ -75,6 +75,14 @@
       box-sizing: border-box;
     }
 
+    body.locked .shell,
+    body.locked .bottom-nav {
+      filter: blur(25px);
+      pointer-events: none;
+      user-select: none;
+      opacity: 0.15;
+    }
+
     .shell {
       width: 100%;
       max-width: 600px;
@@ -922,7 +930,7 @@
         <button class="key-btn" onclick="enterDigit('7')">7</button>
         <button class="key-btn" onclick="enterDigit('8')">8</button>
         <button class="key-btn" onclick="enterDigit('9')">9</button>
-        <button class="key-btn" style="font-size: 13px;" onclick="cancelPasscode()">CANCEL</button>
+        <button class="key-btn" style="font-size: 13px;" onclick="cancelPasscode()" id="passcodeCancelBtn">CLEAR</button>
         <button class="key-btn" onclick="enterDigit('0')">0</button>
         <button class="key-btn" style="font-size: 18px;" onclick="deleteDigit()">⌫</button>
       </div>
@@ -1354,21 +1362,30 @@
       const title = document.getElementById('passcodeTitle');
       const subtitle = document.getElementById('passcodeSubtitle');
       const icon = document.getElementById('lockIcon');
+      const cancelBtn = document.getElementById('passcodeCancelBtn');
 
       if (intent === 'FIRST_LAUNCH') {
         title.innerText = 'Smart Pump Access';
         subtitle.innerText = 'Enter 4-digit PIN to unlock controller';
         icon.innerText = '🔒';
+        if (cancelBtn) cancelBtn.innerText = 'CLEAR';
       } else {
         title.innerText = 'Settings Locked';
         subtitle.innerText = 'Enter PIN to open Settings';
         icon.innerText = '⚙️';
+        if (cancelBtn) cancelBtn.innerText = 'CANCEL';
       }
 
       overlay.className = 'passcode-overlay visible';
     }
 
     function cancelPasscode() {
+      if (passcodeIntent === 'FIRST_LAUNCH') {
+        enteredPin = "";
+        updateDots();
+        showToast('PIN Required to Access');
+        return;
+      }
       document.getElementById('passcodeOverlay').className = 'passcode-overlay';
       enteredPin = "";
       updateDots();
@@ -1377,6 +1394,7 @@
     function verifyPasscode() {
       if (enteredPin === masterPasscode) {
         document.getElementById('passcodeOverlay').className = 'passcode-overlay';
+        document.body.classList.remove('locked');
         if (passcodeIntent === 'FIRST_LAUNCH') {
           localStorage.setItem('pump_device_auth', 'unlocked');
           showToast('Device Authorized');
@@ -1395,6 +1413,7 @@
 
     // Check device launch auth
     if (!localStorage.getItem('pump_device_auth')) {
+      document.body.classList.add('locked');
       showPasscodeModal('FIRST_LAUNCH');
     }
 
